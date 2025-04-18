@@ -1,0 +1,7 @@
+.direnv/bin
+.direnv
+node_modules
+lib
+repomix-output.xml
+.env
+.envrc
