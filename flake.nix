@@ -18,7 +18,7 @@
 
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
-          packages = with pkgs; [ node2nix nodejs ];
+          packages = with pkgs; [ node2nix nodejs pulumi pulumiPackages.pulumi-language-nodejs ];
         };
       });
     };
