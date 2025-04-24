@@ -7,6 +7,7 @@ import {
 	parseCommand,
 } from "./utils.js";
 import { handleFoldCommand } from "./fold-command.js";
+import { handleHelpCommand } from "./help-command.js";
 
 export default (app: Probot) => {
 	app.on("issue_comment.created", async (context) => {
@@ -37,6 +38,9 @@ export default (app: Probot) => {
 					break;
 				case "fold":
 					result = await handleFoldCommand(context, subCommand);
+					break;
+				case "help":
+					result = handleHelpCommand(context);
 					break;
 				default:
 					throw new Error(
