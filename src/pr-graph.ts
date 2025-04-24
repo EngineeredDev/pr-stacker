@@ -6,12 +6,12 @@ import type { SubCommand } from "./utils.js";
 
 type StackNode =
 	| {
-			type: "perennial";
-			ref: string;
-	  }
+		type: "perennial";
+		ref: string;
+	}
 	| ({
-			type: "pull-request";
-	  } & PullRequest);
+		type: "pull-request";
+	} & PullRequest);
 
 /**
  * Builds a graph of all open PRs and their relationships
@@ -85,7 +85,7 @@ function buildPRStack(
 	mainBranch: string,
 ): PullRequest[] {
 	const stack: string[] = [];
-	let currentNodeId = startPrId;
+	let currentNodeId: string = startPrId;
 
 	// First find the root of the stack
 	while (currentNodeId && currentNodeId !== mainBranch) {
@@ -101,6 +101,17 @@ function buildPRStack(
 	// Now build up from the root to find all PRs in this stack
 	stack.push(startPrId);
 	currentNodeId = startPrId;
+
+	// Now add any PRs that appear above
+	while (currentNodeId) {
+		const outNeighbors = graph.outNeighbors(currentNodeId);
+		if (outNeighbors.length === 0) {
+			break;
+		}
+
+		currentNodeId = outNeighbors[0];
+		stack.push(currentNodeId);
+	}
 
 	return stack
 		.map((nodeId) => graph.getNodeAttributes(nodeId))

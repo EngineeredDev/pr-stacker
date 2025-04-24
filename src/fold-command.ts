@@ -53,6 +53,28 @@ export async function handleFoldCommand(
 		// Step 5: Fold the stack
 		const responses = await foldStackDownwards(context, prsToProcess);
 
+		console.log("how is that not the middle?", { stack, prsToProcess });
+		// Step 6: If folded from the middle, fix the next PR to point to trunk
+		if (stack.length > prsToProcess.length) {
+			const nextPR = stack[prsToProcess.length + 1];
+			const repo = context.payload.repository.name;
+			const owner = context.payload.repository.owner.login;
+
+			console.log("folding from middle, setting next PR base", {
+				nextPR,
+				base: stack[0],
+				stack,
+				prsToProcess,
+			});
+
+			await context.octokit.pulls.update({
+				owner,
+				repo,
+				pull_number: nextPR.prNumber,
+				base: stack[0].baseRef,
+			});
+		}
+
 		return responses;
 	} catch (error) {
 		throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`);
