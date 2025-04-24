@@ -1,6 +1,6 @@
-# eng-dev-bot
+# pr-stacker-bot
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that EngineeredDev Github Bot
+> A GitHub App built with [Probot](https://github.com/probot/probot) by EngineeredDev for easy folding of stacked PR's on Github.
 
 ## Setup
 
@@ -16,18 +16,18 @@ npm start
 
 ```sh
 # 1. Build container
-docker build -t eng-dev-bot .
+docker build -t pr-stacker .
 
 # 2. Start container
-docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> eng-dev-bot
+docker run -e APP_ID=<app-id> -e PRIVATE_KEY=<pem-value> pr-stacker
 ```
 
 ## Contributing
 
-If you have suggestions for how eng-dev-bot could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
+If you have suggestions for pr-stacker could be improved, or want to report a bug, open an issue! We'd love all and any contributions.
 
 For more, check out the [Contributing Guide](CONTRIBUTING.md).
 
 ## License
 
-[ISC](LICENSE) © 2025 stoopkidddd
+[ISC](LICENSE) © 2025 EngineeredDev
