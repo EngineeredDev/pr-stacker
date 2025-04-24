@@ -1,6 +1,6 @@
 # pr-stacker-bot
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) by EngineeredDev for easy folding of stacked PR's on Github.
+> A GitHub App built with [Probot](https://github.com/probot/probot) for easy folding of stacked PR's on Github.
 
 ## Setup
 
