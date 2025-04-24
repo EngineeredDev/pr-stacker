@@ -1,13 +1,13 @@
 import type { Probot } from "probot";
-import { handleSquashCommand } from "./squash-command.js";
 import { failComment, postComment, reactToComment } from "./comment.js";
+import { handleFoldCommand } from "./fold-command.js";
+import { handleHelpCommand } from "./help-command.js";
+import { handleSquashCommand } from "./squash-command.js";
 import {
 	type CommandSuccessResponse,
 	isCommentBotCommand,
 	parseCommand,
 } from "./utils.js";
-import { handleFoldCommand } from "./fold-command.js";
-import { handleHelpCommand } from "./help-command.js";
 
 export default (app: Probot) => {
 	app.on("issue_comment.created", async (context) => {
@@ -30,7 +30,7 @@ export default (app: Probot) => {
 				throw new Error(`The command \`${baseCommand}\` was not recognized.`);
 			}
 
-			reactToComment(context);
+			await reactToComment(context);
 
 			switch (baseCommand) {
 				case "squash":
@@ -40,7 +40,7 @@ export default (app: Probot) => {
 					result = await handleFoldCommand(context, subCommand);
 					break;
 				case "help":
-					result = handleHelpCommand(context);
+					result = handleHelpCommand();
 					break;
 				default:
 					throw new Error(
@@ -49,11 +49,11 @@ export default (app: Probot) => {
 			}
 
 			for (const { message, options } of result) {
-				postComment(context, message, options);
+				await postComment(context, message, options);
 			}
 		} catch (error) {
-			reactToComment(context, "confused");
-			failComment(context, error);
+			await reactToComment(context, "confused");
+			await failComment(context, error);
 
 			throw error;
 		}

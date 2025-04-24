@@ -11,6 +11,7 @@
 		"start": "concurrently \"npm run build:watch\" \"npm run probot:watch\"",
 		"build": "tsc",
 		"build:watch": "tsc --watch",
+		"lint": "biome check --write",
 		"probot:watch": "nodemon --watch lib --ext js --exec \"probot run ./lib/index.js\"",
 		"start:prod": "probot run ./lib/index.js"
 	},

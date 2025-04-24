@@ -1,13 +1,13 @@
 import type { Context } from "probot";
-import {
-  type CommandSuccessResponse,
-  getErrorMessage,
-  type SubCommand,
-} from "./utils.js";
-import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
-import { checkMergeReadiness, type PullRequest } from "./pull-request.js";
-import { squashPR } from "./squash-command.js";
 import { getMainBranch } from "./config.js";
+import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
+import { type PullRequest, checkMergeReadiness } from "./pull-request.js";
+import { squashPR } from "./squash-command.js";
+import {
+	type CommandSuccessResponse,
+	type SubCommand,
+	getErrorMessage,
+} from "./utils.js";
 
 /**
  * Handles the fold command triggered by a comment
@@ -16,47 +16,47 @@ import { getMainBranch } from "./config.js";
  * @returns Promise with success responses
  */
 export async function handleFoldCommand(
-  context: Context<"issue_comment.created">,
-  subCommand: SubCommand = "down",
+	context: Context<"issue_comment.created">,
+	subCommand: SubCommand = "down",
 ): Promise<CommandSuccessResponse[]> {
-  try {
-    // Step 1: Get the PR stack
-    const currentPrNumber = context.payload.issue.number;
-    const stack = await getPRStack(context);
+	try {
+		// Step 1: Get the PR stack
+		const currentPrNumber = context.payload.issue.number;
+		const stack = await getPRStack(context);
 
-    // Step 2: Determine which PRs to process based on subCommand
-    const prsToProcess = getRelevantPRsFromStack(
-      currentPrNumber,
-      stack,
-      subCommand,
-    );
+		// Step 2: Determine which PRs to process based on subCommand
+		const prsToProcess = getRelevantPRsFromStack(
+			currentPrNumber,
+			stack,
+			subCommand,
+		);
 
-    // Step 3: Check if all PRs are ready to be folded
-    const readinessChecks = await Promise.all(
-      prsToProcess.map((pr) =>
-        checkMergeReadiness(pr, context, { validateCommits: false }),
-      ),
-    );
+		// Step 3: Check if all PRs are ready to be folded
+		const readinessChecks = await Promise.all(
+			prsToProcess.map((pr) =>
+				checkMergeReadiness(pr, context, { validateCommits: false }),
+			),
+		);
 
-    const unreadyPRs = prsToProcess.filter((_, i) => !readinessChecks[i]);
-    if (unreadyPRs.length > 0) {
-      throw new Error(
-        `The following PRs are not ready to be folded:\n ${unreadyPRs
-          .map((pr) => `- #${pr.prNumber}`)
-          .join("\n")}`,
-      );
-    }
+		const unreadyPRs = prsToProcess.filter((_, i) => !readinessChecks[i]);
+		if (unreadyPRs.length > 0) {
+			throw new Error(
+				`The following PRs are not ready to be folded:\n ${unreadyPRs
+					.map((pr) => `- #${pr.prNumber}`)
+					.join("\n")}`,
+			);
+		}
 
-    // Step 4: Squash each PR
-    await Promise.all(prsToProcess.map((pr) => squashPR(context, pr.prNumber)));
+		// Step 4: Squash each PR
+		await Promise.all(prsToProcess.map((pr) => squashPR(context, pr.prNumber)));
 
-    // Step 5: Fold the stack
-    const responses = await foldStackDownwards(context, prsToProcess);
+		// Step 5: Fold the stack
+		const responses = await foldStackDownwards(context, prsToProcess);
 
-    return responses;
-  } catch (error) {
-    throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`);
-  }
+		return responses;
+	} catch (error) {
+		throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`);
+	}
 }
 
 /**
@@ -66,163 +66,163 @@ export async function handleFoldCommand(
  * @returns Array of success responses
  */
 async function foldStackDownwards(
-  context: Context<"issue_comment.created">,
-  stack: PullRequest[],
+	context: Context<"issue_comment.created">,
+	stack: PullRequest[],
 ): Promise<CommandSuccessResponse[]> {
-  const repo = context.payload.repository.name;
-  const owner = context.payload.repository.owner.login;
-  const responses: CommandSuccessResponse[] = [];
+	const repo = context.payload.repository.name;
+	const owner = context.payload.repository.owner.login;
+	const responses: CommandSuccessResponse[] = [];
 
-  if (stack.length === 0) return [];
+	if (stack.length === 0) return [];
 
-  // Get the main branch reference
-  const mainBranch = await getMainBranch(context);
+	// Get the main branch reference
+	const mainBranch = await getMainBranch(context);
 
-  // Get the main branch SHA as our starting point
-  const { data: mainRef } = await context.octokit.git.getRef({
-    owner,
-    repo,
-    ref: `heads/${mainBranch}`,
-  });
-  const mainSha = mainRef.object.sha;
+	// Get the main branch SHA as our starting point
+	const { data: mainRef } = await context.octokit.git.getRef({
+		owner,
+		repo,
+		ref: `heads/${mainBranch}`,
+	});
+	const mainSha = mainRef.object.sha;
 
-  // Create a temporary branch off of main
-  const tempBranchName = `temp-fold-stack-${stack[0].prNumber}-${Date.now()}`;
-  await context.octokit.git.createRef({
-    owner,
-    repo,
-    ref: `refs/heads/${tempBranchName}`,
-    sha: mainSha,
-  });
+	// Create a temporary branch off of main
+	const tempBranchName = `temp-fold-stack-${stack[0].prNumber}-${Date.now()}`;
+	await context.octokit.git.createRef({
+		owner,
+		repo,
+		ref: `refs/heads/${tempBranchName}`,
+		sha: mainSha,
+	});
 
-  let currentTempBranchSha = mainSha;
+	let currentTempBranchSha = mainSha;
 
-  // First, change the base of the bottom-most PR to point to our temp branch
-  const bottomPR = stack[0];
-  console.log(
-    `Changing base of PR #${bottomPR.prNumber} from ${bottomPR.baseRef} to ${tempBranchName}`,
-  );
+	// First, change the base of the bottom-most PR to point to our temp branch
+	const bottomPR = stack[0];
+	console.log(
+		`Changing base of PR #${bottomPR.prNumber} from ${bottomPR.baseRef} to ${tempBranchName}`,
+	);
 
-  await context.octokit.pulls.update({
-    owner,
-    repo,
-    pull_number: bottomPR.prNumber,
-    base: tempBranchName,
-  });
+	await context.octokit.pulls.update({
+		owner,
+		repo,
+		pull_number: bottomPR.prNumber,
+		base: tempBranchName,
+	});
 
-  // Process each PR in the stack, in order from bottom to top
-  for (let i = 0; i < stack.length; i++) {
-    const currentPR = stack[i];
-    console.log(`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`);
+	// Process each PR in the stack, in order from bottom to top
+	for (let i = 0; i < stack.length; i++) {
+		const currentPR = stack[i];
+		console.log(`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`);
 
-    // Get the commits for this PR
-    const { data: prCommits } = await context.octokit.pulls.listCommits({
-      owner,
-      repo,
-      pull_number: currentPR.prNumber,
-    });
+		// Get the commits for this PR
+		const { data: prCommits } = await context.octokit.pulls.listCommits({
+			owner,
+			repo,
+			pull_number: currentPR.prNumber,
+		});
 
-    // Apply each commit to our temporary branch
-    for (const commit of prCommits) {
-      // Update temp branch to point to this new commit
-      await context.octokit.git.updateRef({
-        owner,
-        repo,
-        ref: `heads/${tempBranchName}`,
-        sha: commit.sha,
-        force: true,
-      });
+		// Apply each commit to our temporary branch
+		for (const commit of prCommits) {
+			// Update temp branch to point to this new commit
+			await context.octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${tempBranchName}`,
+				sha: commit.sha,
+				force: true,
+			});
 
-      currentTempBranchSha = commit.sha;
-    }
+			currentTempBranchSha = commit.sha;
+		}
 
-    // If there's a next PR in the stack, update its base to point to our temp branch
-    if (i < stack.length - 1) {
-      const nextPR = stack[i + 1];
-      console.log(
-        `Changing base of PR #${nextPR.prNumber} from ${nextPR.baseRef} to ${tempBranchName}`,
-      );
+		// If there's a next PR in the stack, update its base to point to our temp branch
+		if (i < stack.length - 1) {
+			const nextPR = stack[i + 1];
+			console.log(
+				`Changing base of PR #${nextPR.prNumber} from ${nextPR.baseRef} to ${tempBranchName}`,
+			);
 
-      await context.octokit.pulls.update({
-        owner,
-        repo,
-        pull_number: nextPR.prNumber,
-        base: tempBranchName,
-      });
-    }
+			await context.octokit.pulls.update({
+				owner,
+				repo,
+				pull_number: nextPR.prNumber,
+				base: tempBranchName,
+			});
+		}
 
-    responses.push({
-      message: `✅ Folded this PR into \`${mainBranch}\` as part of a fold operation started at PR #${stack.at(-1)?.prNumber}`,
-      options: {
-        issue_number: currentPR.prNumber,
-      },
-    });
+		responses.push({
+			message: `✅ Folded this PR into \`${mainBranch}\` as part of a fold operation started at PR #${stack.at(-1)?.prNumber}`,
+			options: {
+				issue_number: currentPR.prNumber,
+			},
+		});
 
-    // Wait briefly for GitHub to process
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-  }
+		// Wait briefly for GitHub to process
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+	}
 
-  // Get `mainBranch` again just in case another merge happened while this operation was happening
-  const { data: currentMainRef } = await context.octokit.git.getRef({
-    owner,
-    repo,
-    ref: `heads/${mainBranch}`,
-  });
-  const currentMainSha = currentMainRef.object.sha;
+	// Get `mainBranch` again just in case another merge happened while this operation was happening
+	const { data: currentMainRef } = await context.octokit.git.getRef({
+		owner,
+		repo,
+		ref: `heads/${mainBranch}`,
+	});
+	const currentMainSha = currentMainRef.object.sha;
 
-  // Get the commits that are unique to our temp branch (our folded stack)
-  const { data: comparison } = await context.octokit.repos.compareCommits({
-    owner,
-    repo,
-    base: currentMainSha,
-    head: currentTempBranchSha,
-  });
+	// Get the commits that are unique to our temp branch (our folded stack)
+	const { data: comparison } = await context.octokit.repos.compareCommits({
+		owner,
+		repo,
+		base: currentMainSha,
+		head: currentTempBranchSha,
+	});
 
-  // Start from the current main branch
-  let newBase = currentMainSha;
+	// Start from the current main branch
+	let newBase = currentMainSha;
 
-  // Apply each unique commit on top of the current main
-  for (const commit of comparison.commits) {
-    const { data: commitData } = await context.octokit.git.getCommit({
-      owner,
-      repo,
-      commit_sha: commit.sha,
-    });
+	// Apply each unique commit on top of the current main
+	for (const commit of comparison.commits) {
+		const { data: commitData } = await context.octokit.git.getCommit({
+			owner,
+			repo,
+			commit_sha: commit.sha,
+		});
 
-    // Create a new commit with the same changes but based on our new base
-    const { data: newCommit } = await context.octokit.git.createCommit({
-      owner,
-      repo,
-      message: commitData.message,
-      tree: commitData.tree.sha,
-      parents: [newBase],
-      author: commitData.author,
-      committer: commitData.committer,
-    });
+		// Create a new commit with the same changes but based on our new base
+		const { data: newCommit } = await context.octokit.git.createCommit({
+			owner,
+			repo,
+			message: commitData.message,
+			tree: commitData.tree.sha,
+			parents: [newBase],
+			author: commitData.author,
+			committer: commitData.committer,
+		});
 
-    // Update our base to this new commit
-    newBase = newCommit.sha;
-  }
+		// Update our base to this new commit
+		newBase = newCommit.sha;
+	}
 
-  // Finally, update the main branch to point to our fully constructed temp branch
-  await context.octokit.git.updateRef({
-    owner,
-    repo,
-    ref: `heads/${mainBranch}`,
-    sha: newBase,
-    force: true,
-  });
+	// Finally, update the main branch to point to our fully constructed temp branch
+	await context.octokit.git.updateRef({
+		owner,
+		repo,
+		ref: `heads/${mainBranch}`,
+		sha: newBase,
+		force: true,
+	});
 
-  // Clean up the temporary branch
-  await context.octokit.git.deleteRef({
-    owner,
-    repo,
-    ref: `heads/${tempBranchName}`,
-  });
+	// Clean up the temporary branch
+	await context.octokit.git.deleteRef({
+		owner,
+		repo,
+		ref: `heads/${tempBranchName}`,
+	});
 
-  responses.push({
-    message: `✅ Successfully folded stack onto ${mainBranch}`,
-  });
+	responses.push({
+		message: `✅ Successfully folded stack onto ${mainBranch}`,
+	});
 
-  return responses;
+	return responses;
 }
