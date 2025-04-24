@@ -6,11 +6,7 @@
 	"author": "EngineeredDev",
 	"license": "ISC",
 	"homepage": "https://github.com/EngineeredDev/pr-stacker",
-	"keywords": [
-		"probot",
-		"github",
-		"probot-app"
-	],
+	"keywords": ["probot", "github", "probot-app"],
 	"scripts": {
 		"start": "concurrently \"npm run build:watch\" \"npm run probot:watch\"",
 		"build": "tsc",
@@ -20,8 +16,7 @@
 	},
 	"dependencies": {
 		"@probot/adapter-aws-lambda-serverless": "^4.0.3",
-		"@pulumi/aws": "^6.77.1",
-		"@pulumi/pulumi": "^3.163.0",
+		"@sentry/aws-serverless": "^9.14.0",
 		"esbuild": "^0.25.3",
 		"graphology": "^0.26.0",
 		"graphology-dag": "^0.4.1",

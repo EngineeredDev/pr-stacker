@@ -1,11 +1,12 @@
 {
-    "name": "pr-stacker",
-    "main": "index.ts",
-    "devDependencies": {
-        "@types/node": "^18",
-        "typescript": "^5.0.0"
-    },
-    "dependencies": {
-        "@pulumi/pulumi": "^3.113.0"
-    }
+	"name": "pr-stacker-infra",
+	"main": "index.ts",
+	"devDependencies": {
+		"@types/node": "^18",
+		"typescript": "^5.0.0"
+	},
+	"dependencies": {
+		"@pulumi/aws": "^6.77.1",
+		"@pulumi/pulumi": "^3.163.0"
+	}
 }

@@ -10,3 +10,5 @@ config:
     secure: AAABAMeQYM8bkA18O7L8WwfMGA9ite+JBHEi5cUu1D81wgckAMKQ7+bJGDqGmHJb2GZCYw==
   pr-stacker:githubClientSecret:
     secure: AAABAFZQQ4RDasARFoMkAAeunP3Uow4Yw1VzfcD1Oa4UDooOD+kuWGvxE9FpYI8haQXPqmdkcQtIqeHPaYGhCFlJOk0UxRfH
+  pr-stacker:sentryDsn:
+    secure: AAABANN8SXKZDmkxWucjTIQl1D/GPQW4CC2TP5C7LzoQhMHCN4Om/P6qJrMYV4KdACyjW4zzCWJOKvV6tF6WPXvM332YsuGU4knlRRovYU5Ne4ixLDlEdCNjCs69salm1hcPBnHfxhNc6UMhYdAGJQetTHX429XXakG+lTToyA==
