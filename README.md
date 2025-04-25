@@ -28,6 +28,13 @@ A hosted version of this bot is made available [here](https://github.com/apps/pr
 
 Then go ahead and add the `pr-stacker` app to the bypass list of your branch protection rule (if you have one) that enforces requiring a pull request, or any other enforcement rules that may prevent it such as "Block force pushes" or "Require merge queue". That should be it!
 
+## Configuration
+
+Add a `.github/pr-stacker.yml` file in your repo where you can provider certain settings:
+
+- `mainBranch`: (default: repo default branch) Set this to override the "trunk" to any other branch.
+- `singleComment`: (default: `false`) Each action will generate a separate comment by default. Set this to `true` if you prefer there to only ever be 1 comment per PR, that continually gets edited if multiple commands are performed.
+
 ## Self Hosted
 
 If you don't trust the hosted version and would rather host your own, that is also possible! You can either clone the repo directly, or use the built [Docker images](https://github.com/EngineeredDev/pr-stacker/pkgs/container/pr-stacker)
