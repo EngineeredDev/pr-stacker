@@ -1,4 +1,4 @@
-# 🥞 pr-stacker-bot
+# 🥞 pr-stacker
 
 > A GitHub App for easy and efficient folding of stacked PR's on Github.
 
@@ -27,6 +27,12 @@ The only real downside is that each PR will have a base that points to a tempora
 A hosted version of this bot is made available [here](https://github.com/apps/pr-stacker). Add the app to your repository/organization and allow the requested permissions.
 
 Then go ahead and add the `pr-stacker` app to the bypass list of your branch protection rule (if you have one) that enforces requiring a pull request, or any other enforcement rules that may prevent it such as "Block force pushes" or "Require merge queue". That should be it!
+
+## Available Commands
+
+- `/stackbot fold`: Squash and fold from the current PR down
+- `/stackbot squash`: Squash each PR from the current PR down
+- `/stackbot help`: Receive a comment with the available commands
 
 ## Configuration
 
