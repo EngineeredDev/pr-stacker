@@ -48,6 +48,9 @@ export async function handleFoldCommand(
 		// Step 4: Squash each PR
 		await Promise.all(prsToProcess.map((pr) => squashPR(context, pr.prNumber)));
 
+		// Wait for Github to process all of the squashes
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+
 		// Step 5: Fold the stack
 		const responses = await foldStackDownwards(context, prsToProcess);
 
@@ -125,12 +128,13 @@ async function foldStackDownwards(
 		console.log(`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`);
 
 		// Get the commits for this PR
-		// Use `repos.listCommits` instead of `pulls.listCommits` because Github API often returns stale data after changing the PR base branch
-		const { data: prCommits } = await context.octokit.repos.listCommits({
+		const { data: prCommits } = await context.octokit.pulls.listCommits({
 			owner,
 			repo,
 			pull_number: currentPR.prNumber,
 		});
+
+		console.log(`Commits from PR ${currentPR.prNumber}`, prCommits);
 
 		// Apply each commit to our temporary branch
 		for (const commit of prCommits) {
