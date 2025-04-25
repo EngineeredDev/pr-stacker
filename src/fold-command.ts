@@ -127,28 +127,23 @@ async function foldStackDownwards(
 		const currentPR = stack[i];
 		console.log(`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`);
 
-		// Get the commits for this PR
-		const { data: prCommits } = await context.octokit.pulls.listCommits({
+		// Get only the latest commit (the squashed one) from the branch
+		const { data: branchData } = await context.octokit.repos.getBranch({
 			owner,
 			repo,
-			pull_number: currentPR.prNumber,
+			branch: currentPR.headRef,
 		});
 
-		console.log(`Commits from PR ${currentPR.prNumber}`, prCommits);
+		// Apply just this single squashed commit
+		await context.octokit.git.updateRef({
+			owner,
+			repo,
+			ref: `heads/${tempBranchName}`,
+			sha: branchData.commit.sha,
+			force: true,
+		});
 
-		// Apply each commit to our temporary branch
-		for (const commit of prCommits) {
-			// Update temp branch to point to this new commit
-			await context.octokit.git.updateRef({
-				owner,
-				repo,
-				ref: `heads/${tempBranchName}`,
-				sha: commit.sha,
-				force: true,
-			});
-
-			currentTempBranchSha = commit.sha;
-		}
+		currentTempBranchSha = branchData.commit.sha;
 
 		// If there's a next PR in the stack, update its base to point to our temp branch
 		if (i < stack.length - 1) {
