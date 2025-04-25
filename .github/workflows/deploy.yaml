@@ -6,6 +6,7 @@ on:
 jobs:
   trigger-deployment:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Trigger Pulumi Deployment
         run: |
@@ -13,11 +14,5 @@ jobs:
             -H "Authorization: token ${{ secrets.PULUMI_ACCESS_TOKEN }}" \
             --location "https://api.pulumi.com/api/stacks/engineereddev/pr-stacker/main/deployments" \
             -d '{
-              "operation": "update",
-              "sourceContext": {
-                "git": {
-                  "repoURL": "https://github.com/EngineeredDev/pr-stacker-infra.git",
-                  "branch": "main"
-                }
-              }
+              "operation": "update"
             }'
