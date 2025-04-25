@@ -1,5 +1,5 @@
 import type { Context } from "probot";
-import { getMainBranch } from "./config.js";
+import { getConfig, getMainBranch } from "./config.js";
 import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
 import { type PullRequest, checkMergeReadiness } from "./pull-request.js";
 import { squashPR } from "./squash-command.js";
@@ -9,12 +9,6 @@ import {
 	getErrorMessage,
 } from "./utils.js";
 
-/**
- * Handles the fold command triggered by a comment
- * @param context Probot context
- * @param subCommand Which PRs to include (down, all, etc)
- * @returns Promise with success responses
- */
 export async function handleFoldCommand(
 	context: Context<"issue_comment.created">,
 	subCommand: SubCommand = "down",
@@ -31,10 +25,14 @@ export async function handleFoldCommand(
 			subCommand,
 		);
 
+		const config = await getConfig(context);
+
 		// Step 3: Check if all PRs are ready to be folded
 		const readinessChecks = await Promise.all(
 			prsToProcess.map((pr) =>
-				checkMergeReadiness(pr, context, { validateCommits: false }),
+				checkMergeReadiness(pr, context, {
+					validateCommits: config.skipReadyCheck,
+				}),
 			),
 		);
 
@@ -76,12 +74,6 @@ export async function handleFoldCommand(
 	}
 }
 
-/**
- * Folds a stack of PRs downwards, with each PR's changes being folded into the one below
- * @param context Probot context
- * @param stack Array of PRs to fold, ordered from top to bottom
- * @returns Array of success responses
- */
 async function foldStackDownwards(
 	context: Context<"issue_comment.created">,
 	stack: PullRequest[],
@@ -133,7 +125,8 @@ async function foldStackDownwards(
 		console.log(`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`);
 
 		// Get the commits for this PR
-		const { data: prCommits } = await context.octokit.pulls.listCommits({
+		// Use `repos.listCommits` instead of `pulls.listCommits` because Github API often returns stale data after changing the PR base branch
+		const { data: prCommits } = await context.octokit.repos.listCommits({
 			owner,
 			repo,
 			pull_number: currentPR.prNumber,
@@ -235,10 +228,6 @@ async function foldStackDownwards(
 		owner,
 		repo,
 		ref: `heads/${tempBranchName}`,
-	});
-
-	responses.push({
-		message: `✅ Successfully folded stack onto ${mainBranch}`,
 	});
 
 	return responses;
