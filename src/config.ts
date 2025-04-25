@@ -10,7 +10,7 @@ export interface SquashBotConfig {
 }
 
 export async function getConfig(context: Context<"issue_comment">) {
-	return await context.config<SquashBotConfig>("squashbot.yml", {
+	return await context.config<SquashBotConfig>("pr-stacker.yml", {
 		enabled: true,
 		singleComment: false,
 	});
