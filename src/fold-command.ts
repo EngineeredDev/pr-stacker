@@ -28,21 +28,24 @@ export async function handleFoldCommand(
 		const config = await getConfig(context);
 
 		// Step 3: Check if all PRs are ready to be folded
-		const readinessChecks = await Promise.all(
-			prsToProcess.map((pr) =>
-				checkMergeReadiness(pr, context, {
-					validateCommits: config.skipReadyCheck,
-				}),
-			),
-		);
-
-		const unreadyPRs = prsToProcess.filter((_, i) => !readinessChecks[i]);
-		if (unreadyPRs.length > 0) {
-			throw new Error(
-				`The following PRs are not ready to be folded:\n ${unreadyPRs
-					.map((pr) => `- #${pr.prNumber}`)
-					.join("\n")}`,
+		if (!config.skipReadyCheck) {
+			const readinessChecks = await Promise.all(
+				prsToProcess.map((pr) =>
+					checkMergeReadiness(pr, context, {
+						// TODO: not really implemented right now. We always squash by default after this. Maybe that should be configurable?
+						validateCommits: false,
+					}),
+				),
 			);
+
+			const unreadyPRs = prsToProcess.filter((_, i) => !readinessChecks[i]);
+			if (unreadyPRs.length > 0) {
+				throw new Error(
+					`The following PRs are not ready to be folded:\n ${unreadyPRs
+						.map((pr) => `- #${pr.prNumber}`)
+						.join("\n")}`,
+				);
+			}
 		}
 
 		// Step 4: Squash each PR
