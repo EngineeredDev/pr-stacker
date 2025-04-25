@@ -134,16 +134,34 @@ async function foldStackDownwards(
 			branch: currentPR.headRef,
 		});
 
+		// Get the commit details
+		const { data: commitData } = await context.octokit.git.getCommit({
+			owner,
+			repo,
+			commit_sha: branchData.commit.sha,
+		});
+
+		// Create a new commit with the current temp branch as parent
+		const { data: newCommit } = await context.octokit.git.createCommit({
+			owner,
+			repo,
+			message: commitData.message,
+			tree: commitData.tree.sha,
+			parents: [currentTempBranchSha],
+			author: commitData.author,
+			committer: commitData.committer,
+		});
+
 		// Apply just this single squashed commit
 		await context.octokit.git.updateRef({
 			owner,
 			repo,
 			ref: `heads/${tempBranchName}`,
-			sha: branchData.commit.sha,
+			sha: newCommit.sha,
 			force: true,
 		});
 
-		currentTempBranchSha = branchData.commit.sha;
+		currentTempBranchSha = newCommit.sha;
 
 		// If there's a next PR in the stack, update its base to point to our temp branch
 		if (i < stack.length - 1) {
@@ -158,6 +176,43 @@ async function foldStackDownwards(
 				pull_number: nextPR.prNumber,
 				base: tempBranchName,
 			});
+
+			// Get the latest commit from the next PR's head branch
+			const { data: nextBranchData } = await context.octokit.repos.getBranch({
+				owner,
+				repo,
+				branch: nextPR.headRef,
+			});
+
+			// Get details of the next PR's head commit to preserve author info
+			const { data: nextHeadCommit } = await context.octokit.git.getCommit({
+				owner,
+				repo,
+				commit_sha: nextBranchData.commit.sha,
+			});
+
+			// Create a new commit on top of our temp branch that represents just the changes from PR B
+			const { data: newHeadCommit } = await context.octokit.git.createCommit({
+				owner,
+				repo,
+				message: nextHeadCommit.message,
+				tree: nextHeadCommit.tree.sha, // Use the tree from PR B's head
+				parents: [currentTempBranchSha],
+				author: nextHeadCommit.author,
+				committer: nextHeadCommit.committer,
+			});
+
+			// Force update the next PR's head branch to point to this new commit
+			await context.octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${nextPR.headRef}`,
+				sha: newHeadCommit.sha,
+				force: true,
+			});
+
+			// Wait briefly for GitHub to process
+			await new Promise((resolve) => setTimeout(resolve, 2000));
 		}
 
 		responses.push({
