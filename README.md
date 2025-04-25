@@ -14,11 +14,15 @@ Okay so we only want squash; this leaves stacked PR's in a tough spot. In order 
 
 The other option is to "fold" each PR into the one below it, and then squash the whole changeset in the final remaining PR and merge that into your trunk. This stinks! You lose your commit history, and now your entire changeset will only point to this one PR. All that hard work lost to the annals of time!
 
-Enter `pr-stacker-bot`!
+### Enter `pr-stacker-bot`!
 
 When you are ready to merge a stack of PR's, just comment `/stackbot fold` on a pull request, and it will fold that PR and all below it in the stack into the trunk branch. 
 
-The way it works is that it will first squash each PR into one commit, setting the commit message to the PR title and body. Then it takes each commit and puts it on a temporary branch, and finally rebasing the squashed commits onto your trunk branch. It does this operation iteratively, one by one, so that Github will correctly mark each individual PR as "merged" automatically. All changeset history will be properly preserved, and you can go back and view the Pull Requests in the future and get an accurate representation of what each commit/PR changed. Beautiful!
+The way it works is that it first squashes each PR into one commit, setting the commit message to the PR title and body. 
+
+Then it takes each commit and puts it on a temporary branch, and then rebases each squashed commit onto the trunk branch individually. 
+
+It does this operation iteratively, one by one, so that Github will correctly mark each individual PR as "merged" automatically. All changeset history is properly preserved, and you can still back and view the original PR's to see an accurate representation of what each commit/PR changed. Beautiful!
 
 The only real downside is that each PR will have a base that points to a temporary branch.
 
