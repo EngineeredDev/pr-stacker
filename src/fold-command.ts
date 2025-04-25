@@ -53,25 +53,20 @@ export async function handleFoldCommand(
 		// Step 5: Fold the stack
 		const responses = await foldStackDownwards(context, prsToProcess);
 
-		console.log("how is that not the middle?", { stack, prsToProcess });
 		// Step 6: If folded from the middle, fix the next PR to point to trunk
 		if (stack.length > prsToProcess.length) {
-			const nextPR = stack[prsToProcess.length + 1];
+			const nextPR = stack[prsToProcess.length];
 			const repo = context.payload.repository.name;
 			const owner = context.payload.repository.owner.login;
+			const trunkRef = stack[0].baseRef;
 
-			console.log("folding from middle, setting next PR base", {
-				nextPR,
-				base: stack[0],
-				stack,
-				prsToProcess,
-			});
+			console.log(`Setting the next PR in the stack to have base ${trunkRef}`);
 
 			await context.octokit.pulls.update({
 				owner,
 				repo,
 				pull_number: nextPR.prNumber,
-				base: stack[0].baseRef,
+				base: trunkRef,
 			});
 		}
 

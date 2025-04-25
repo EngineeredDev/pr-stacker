@@ -1,5 +1,6 @@
 import type { Context } from "probot";
 import { botName, getErrorMessage } from "./utils.js";
+import { getConfig } from "./config.js";
 
 export interface PostCommentOverrideOptions {
 	owner?: string;
@@ -24,6 +25,7 @@ export async function postComment(
 	body: string,
 	overrides?: PostCommentOverrideOptions,
 ) {
+	const config = await getConfig(context);
 	const params = {
 		owner: context.payload.repository.owner.login,
 		repo: context.payload.repository.name,
@@ -31,26 +33,28 @@ export async function postComment(
 		...overrides,
 	};
 
-	// Find existing bot comment
-	const { data: comments } = await context.octokit.issues.listComments(params);
-	const existingComment = comments.find(
-		(comment) => comment.user?.login === botName,
-	);
+	if (config?.singleComment) {
+		// Find existing bot comment
+		const { data: comments } =
+			await context.octokit.issues.listComments(params);
+		const existingComment = comments.find(
+			(comment) => comment.user?.login === botName,
+		);
 
-	if (existingComment) {
-		// Edit existing comment
-		await context.octokit.issues.updateComment({
-			...params,
-			comment_id: existingComment.id,
-			body,
-		});
-	} else {
-		// Create new comment
-		await context.octokit.issues.createComment({
-			...params,
-			body,
-		});
+		if (existingComment) {
+			// Edit existing comment
+			return await context.octokit.issues.updateComment({
+				...params,
+				comment_id: existingComment.id,
+				body,
+			});
+		}
 	}
+
+	return await context.octokit.issues.createComment({
+		...params,
+		body,
+	});
 }
 
 export async function failComment(

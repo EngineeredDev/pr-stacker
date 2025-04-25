@@ -1,52 +1,44 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
 import * as aws from "@pulumi/aws";
+import * as awsx from "@pulumi/awsx";
 import * as pulumi from "@pulumi/pulumi";
-import * as esbuild from "esbuild";
+import * as iam from "@pulumi/aws/iam";
+import * as path from "node:path";
 
+// Get configuration
 const config = new pulumi.Config();
 
-const buildDir = "dist";
-if (!fs.existsSync(buildDir)) {
-	fs.mkdirSync(buildDir);
-}
-
-esbuild.buildSync({
-	entryPoints: ["../src/handler.ts"],
-	bundle: true,
-	platform: "node",
-	target: "node18",
-	outfile: path.join(buildDir, "handler.js"),
-	external: ["aws-sdk"],
+// Create ECR repository for storing the Docker image
+const repository = new awsx.ecr.Repository("pr-stacker-repo", {
+	forceDelete: true,
 });
 
-// Create an IAM role for the Lambda function
-const lambdaRole = new aws.iam.Role("probot-lambda-role", {
-	assumeRolePolicy: JSON.stringify({
-		Version: "2012-10-17",
-		Statement: [
-			{
-				Action: "sts:AssumeRole",
-				Effect: "Allow",
-				Principal: {
-					Service: "lambda.amazonaws.com",
-				},
-			},
-		],
-	}),
+// Build and push Docker image from the Dockerfile in parent directory
+const image = new awsx.ecr.Image("pr-stacker-image", {
+	repositoryUrl: repository.url,
+	context: path.join(__dirname, ".."),
+	platform: "linux/amd64",
 });
 
-// Attach the basic execution role policy to the Lambda role
-const lambdaRolePolicy = new aws.iam.RolePolicyAttachment(
-	"probot-lambda-role-policy",
-	{
-		role: lambdaRole.name,
-		policyArn:
-			"arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+// Create an ECS cluster
+const cluster = new aws.ecs.Cluster("pr-stacker-cluster");
+
+// Create a load balancer for the service
+const lb = new awsx.lb.ApplicationLoadBalancer("pr-stacker-lb", {
+	defaultTargetGroup: {
+		port: 3000,
+		protocol: "HTTP",
+		healthCheck: {
+			path: "/health",
+			protocol: "HTTP",
+			interval: 30,
+			timeout: 5,
+			healthyThreshold: 2,
+			unhealthyThreshold: 2,
+		},
 	},
-);
+});
 
-// Create a Parameter Store parameter for each GitHub App credential
+// Create SSM parameters for GitHub app credentials
 const appId = new aws.ssm.Parameter("github-app-id", {
 	type: "SecureString",
 	value: config.requireSecret("githubAppId"),
@@ -77,15 +69,62 @@ const sentryDsn = new aws.ssm.Parameter("sentry-dsn", {
 	value: config.requireSecret("sentryDsn"),
 });
 
-// Grant Lambda permission to read the parameters
-const parameterPolicy = new aws.iam.Policy("parameter-access-policy", {
-	policy: {
+// Create the ECS task execution role with proper permissions
+const ecsTaskExecutionRole = new aws.iam.Role("ecs-task-execution-role", {
+	assumeRolePolicy: JSON.stringify({
 		Version: "2012-10-17",
 		Statement: [
 			{
-				Action: ["ssm:GetParameter"],
 				Effect: "Allow",
-				Resource: [
+				Principal: {
+					Service: "ecs-tasks.amazonaws.com",
+				},
+				Action: "sts:AssumeRole",
+			},
+		],
+	}),
+});
+
+// Attach the ECS task execution policy
+new aws.iam.RolePolicyAttachment("ecs-task-execution-policy", {
+	role: ecsTaskExecutionRole.name,
+	policyArn:
+		"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+});
+
+const policyDocument = {
+	Version: "2012-10-17",
+	Statement: [
+		{
+			Effect: "Allow",
+			Action: [
+				"ssm:GetParameters",
+				"secretsmanager:GetSecretValue",
+				"kms:Decrypt",
+			],
+			Resource: [
+				appId.arn,
+				webhookSecret.arn,
+				privateKey.arn,
+				clientId.arn,
+				clientSecret.arn,
+				sentryDsn.arn,
+			],
+		},
+	],
+};
+
+// Create the policy with the document
+const ssmParameterPolicy = new aws.iam.Policy("ssm-parameter-access", {
+	policy: iam.getPolicyDocumentOutput({
+		statements: [
+			{
+				actions: [
+					"ssm:GetParameters",
+					"secretsmanager:GetSecretValue",
+					"kms:Decrypt",
+				],
+				resources: [
 					appId.arn,
 					webhookSecret.arn,
 					privateKey.arn,
@@ -93,96 +132,63 @@ const parameterPolicy = new aws.iam.Policy("parameter-access-policy", {
 					clientSecret.arn,
 					sentryDsn.arn,
 				],
+				effect: "Allow",
 			},
 		],
-	},
+	}).json,
 });
 
-const parameterPolicyAttachment = new aws.iam.RolePolicyAttachment(
-	"parameter-policy-attachment",
-	{
-		role: lambdaRole.name,
-		policyArn: parameterPolicy.arn,
-	},
-);
+// Attach the SSM policy to the execution role
+new aws.iam.RolePolicyAttachment("ssm-policy-attachment", {
+	role: ecsTaskExecutionRole.name,
+	policyArn: ssmParameterPolicy.arn,
+});
 
-// Create the Lambda function
-const lambdaFunction = new aws.lambda.Function("probot-lambda", {
-	runtime: aws.lambda.Runtime.NodeJS22dX,
-	role: lambdaRole.arn,
-	handler: "handler.handler",
-	code: new pulumi.asset.AssetArchive({
-		".": new pulumi.asset.FileArchive(buildDir),
-	}),
-	environment: {
-		variables: {
-			APP_ID: appId.value,
-			WEBHOOK_SECRET: webhookSecret.value,
-			PRIVATE_KEY: privateKey.value,
-			GITHUB_CLIENT_ID: clientId.value,
-			GITHUB_CLIENT_SECRET: clientSecret.value,
-			SENTRY_DSN: sentryDsn.value,
-			NODE_ENV: "production",
+// Create a Fargate service to run the container
+const service = new awsx.ecs.FargateService("pr-stacker-service", {
+	cluster: cluster.arn,
+	assignPublicIp: true,
+	taskDefinitionArgs: {
+		container: {
+			name: "pr-stacker",
+			image: image.imageUri,
+			cpu: 256,
+			memory: 512,
+			essential: true,
+			portMappings: [
+				{
+					containerPort: 3000,
+					hostPort: 3000,
+					targetGroup: lb.defaultTargetGroup,
+				},
+			],
+			environment: [{ name: "NODE_ENV", value: "production" }],
+			secrets: [
+				{ name: "APP_ID", valueFrom: appId.arn },
+				{ name: "WEBHOOK_SECRET", valueFrom: webhookSecret.arn },
+				{ name: "PRIVATE_KEY", valueFrom: privateKey.arn },
+				{ name: "GITHUB_CLIENT_ID", valueFrom: clientId.arn },
+				{ name: "GITHUB_CLIENT_SECRET", valueFrom: clientSecret.arn },
+				{ name: "SENTRY_DSN", valueFrom: sentryDsn.arn },
+			],
+			// logConfiguration: {
+			// 	logDriver: "awslogs",
+			// 	options: {
+			// 		"awslogs-group": "/ecs/pr-stacker",
+			// 		"awslogs-region": aws.config.requireRegion(),
+			// 		"awslogs-stream-prefix": "ecs",
+			// 		"awslogs-create-group": "true",
+			// 	},
+			// },
+		},
+		executionRole: {
+			roleArn: ecsTaskExecutionRole.arn,
+		},
+		taskRole: {
+			roleArn: ecsTaskExecutionRole.arn,
 		},
 	},
-	timeout: 30,
 });
 
-// Create an API Gateway REST API
-const api = new aws.apigateway.RestApi("probot-api", {
-	description: "GitHub Webhook API",
-});
-
-// Create a resource for the webhook endpoint
-const webhookResource = new aws.apigateway.Resource("webhook-resource", {
-	parentId: api.rootResourceId,
-	pathPart: "github",
-	restApi: api.id,
-});
-
-// Create an HTTP method for the resource
-const webhookMethod = new aws.apigateway.Method("webhook-method", {
-	httpMethod: "POST",
-	authorization: "NONE",
-	restApi: api.id,
-	resourceId: webhookResource.id,
-});
-
-// Create an integration between the API Gateway and Lambda
-const integration = new aws.apigateway.Integration("lambda-integration", {
-	restApi: api.id,
-	resourceId: webhookResource.id,
-	httpMethod: webhookMethod.httpMethod,
-	integrationHttpMethod: "POST",
-	type: "AWS_PROXY",
-	uri: lambdaFunction.invokeArn,
-});
-
-// Grant API Gateway permission to invoke the Lambda function
-const permission = new aws.lambda.Permission("api-gateway-permission", {
-	action: "lambda:InvokeFunction",
-	function: lambdaFunction.name,
-	principal: "apigateway.amazonaws.com",
-	sourceArn: pulumi.interpolate`${api.executionArn}/*/*`,
-});
-
-// Deploy the API Gateway
-const deployment = new aws.apigateway.Deployment(
-	"api-deployment",
-	{
-		restApi: api.id,
-	},
-	{
-		dependsOn: [integration],
-	},
-);
-
-// Create a stage for the deployment
-const stage = new aws.apigateway.Stage("production", {
-	deployment: deployment.id,
-	restApi: api.id,
-	stageName: "prod",
-});
-
-// Export the URL of the API Gateway
-export const webhookUrl = pulumi.interpolate`${stage.invokeUrl}/github`;
+// Export the webhook URL
+export const webhookUrl = pulumi.interpolate`http://${lb.loadBalancer.dnsName}`;

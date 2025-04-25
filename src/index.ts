@@ -1,4 +1,4 @@
-import type { Probot } from "probot";
+import type { Probot, ApplicationFunctionOptions } from "probot";
 import { failComment, postComment, reactToComment } from "./comment.js";
 import { handleFoldCommand } from "./fold-command.js";
 import { handleHelpCommand } from "./help-command.js";
@@ -9,7 +9,7 @@ import {
 	parseCommand,
 } from "./utils.js";
 
-export default (app: Probot) => {
+export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 	app.on("issue_comment.created", async (context) => {
 		if (context.isBot || !context.payload.issue.pull_request) {
 			return;
@@ -57,5 +57,15 @@ export default (app: Probot) => {
 
 			throw error;
 		}
+	});
+
+	const router = getRouter?.();
+
+	if (!router) {
+		return;
+	}
+
+	router.get("/health", (_, res) => {
+		res.status(200).send("UP");
 	});
 };
