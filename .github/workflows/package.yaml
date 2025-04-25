@@ -48,12 +48,3 @@ jobs:
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-      
-      # - name: Trigger deployment
-      #   uses: peter-evans/repository-dispatch@v2
-      #   with:
-      #     token: ${{ secrets.DEPLOY_PAT }}
-      #     repository: your-org/your-infra-repo
-      #     event-type: app-image-updated
-      #     client-payload: '{"image_tag": "${{ steps.meta.outputs.tags }}"}'
-

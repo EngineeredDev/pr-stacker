@@ -1,41 +1,23 @@
-# name: Pulumi Deploy
-# on:
-#   push:
-#     branches: [ "main" ]
-#
-# jobs:
-#   deploy:
-#     name: Pulumi Up
-#     runs-on: ubuntu-latest
-#     environment: production
-#     permissions:
-#       contents: read
-#       id-token: write
-#
-#     steps:
-#       - uses: actions/checkout@v4
-#
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version-file: 'package.json'
-#           cache: 'npm'
-#
-#       - name: Install dependencies
-#         run: npm install
-#
-#       - name: Configure AWS Credentials
-#         uses: aws-actions/configure-aws-credentials@v4
-#         with:
-#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-#           aws-region: ${{ secrets.AWS_REGION }}
-#
-#       - name: Pulumi Up
-#         uses: pulumi/actions@v6
-#         with:
-#           command: up
-#           stack-name: engineereddev/pr-stacker/main 
-#           work-dir: "./infra"
-#         env:
-#           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+name: Trigger Pulumi Deployment
+on:
+  push:
+    branches: [main]
 
+jobs:
+  trigger-deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Pulumi Deployment
+        run: |
+          curl -i -XPOST -H "Content-Type: application/json" \
+            -H "Authorization: token ${{ secrets.PULUMI_ACCESS_TOKEN }}" \
+            --location "https://api.pulumi.com/api/stacks/engineereddev/pr-stacker/main/deployments" \
+            -d '{
+              "operation": "update",
+              "sourceContext": {
+                "git": {
+                  "repoURL": "https://github.com/EngineeredDev/pr-stacker-infra.git",
+                  "branch": "main"
+                }
+              }
+            }'
