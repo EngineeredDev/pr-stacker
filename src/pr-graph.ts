@@ -4,14 +4,14 @@ import { getMainBranch } from "./config.js";
 import type { PullRequest } from "./pull-request.js";
 import type { SubCommand } from "./utils.js";
 
-type StackNode =
+export type StackNode =
 	| {
-		type: "perennial";
-		ref: string;
-	}
+			type: "perennial";
+			ref: string;
+	  }
 	| ({
-		type: "pull-request";
-	} & PullRequest);
+			type: "pull-request";
+	  } & PullRequest);
 
 /**
  * Builds a graph of all open PRs and their relationships
@@ -19,11 +19,11 @@ type StackNode =
  * @returns Array of PullRequest objects representing the stack
  */
 export async function getPRStack(
-	context: Context<"issue_comment">,
+	prNumber: number,
+	context: Context,
 ): Promise<PullRequest[]> {
 	const repoGraph = new DirectedGraph<StackNode>();
 	const mainBranch = await getMainBranch(context);
-	const prNumber = context.issue().issue_number;
 
 	// Get all open PRs
 	const { data: openPullRequests } = await context.octokit.pulls.list({

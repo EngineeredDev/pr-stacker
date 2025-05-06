@@ -15,27 +15,40 @@ export interface SquashBotConfig {
 	 * If you would like to override this check, set to `true`
 	 */
 	skipReadyCheck: boolean;
+
+	/*
+	 * By default, the bot will add a separate comment to each PR in a stack that displays the full stack for reference.
+	 * To disable, set `stackTreeComment.enableStackTreeComment` to `false`
+	 *
+	 * By default, the bot will skip adding the tree comment for PR's that are not part of a stack.
+	 * If you prefer to have this, set `skipSinglePR` to `false`
+	 */
+	stackTreeComment: {
+		enable: boolean;
+		skipSinglePR: boolean;
+	};
 }
 
 const defaultOptions = {
 	enabled: true,
 	singleComment: false,
 	skipReadyCheck: false,
+	stackTreeComment: {
+		enable: true,
+		skipSinglePR: true,
+	},
 } satisfies SquashBotConfig;
 
-export async function getConfig(
-	context: Context<"issue_comment">,
-): Promise<SquashBotConfig> {
-	const config = await context.config<SquashBotConfig>("pr-stacker.yml", {
-		enabled: true,
-		singleComment: false,
-		skipReadyCheck: false,
-	});
+export async function getConfig(context: Context): Promise<SquashBotConfig> {
+	const config = await context.config<SquashBotConfig>(
+		"pr-stacker.yml",
+		defaultOptions,
+	);
 
 	return config ?? defaultOptions;
 }
 
-export async function getMainBranch(context: Context<"issue_comment">) {
+export async function getMainBranch(context: Context) {
 	const { octokit } = context;
 
 	const config = await getConfig(context);

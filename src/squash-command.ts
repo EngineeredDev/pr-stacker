@@ -8,7 +8,7 @@ export async function handleSquashCommand(
 ) {
 	const currentPrNumber = context.payload.issue.number;
 
-	const stack = await getPRStack(context);
+	const stack = await getPRStack(currentPrNumber, context);
 
 	const reducedStack = getRelevantPRsFromStack(
 		currentPrNumber,
@@ -38,7 +38,7 @@ export async function squashPR(
 			pull_number: prNumber,
 		});
 
-		const prTitle = pullRequest.title;
+		const prTitle = `${pullRequest.title} (#${pullRequest.number})`;
 		const prBody = pullRequest.body || "";
 		const headRef = pullRequest.head.ref;
 		const baseRef = pullRequest.base.ref;

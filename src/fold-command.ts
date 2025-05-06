@@ -16,7 +16,7 @@ export async function handleFoldCommand(
 	try {
 		// Step 1: Get the PR stack
 		const currentPrNumber = context.payload.issue.number;
-		const stack = await getPRStack(context);
+		const stack = await getPRStack(currentPrNumber, context);
 
 		// Step 2: Determine which PRs to process based on subCommand
 		const prsToProcess = getRelevantPRsFromStack(
@@ -112,19 +112,6 @@ async function foldStackDownwards(
 
 	let currentTempBranchSha = mainSha;
 
-	// First, change the base of the bottom-most PR to point to our temp branch
-	const bottomPR = stack[0];
-	console.log(
-		`Changing base of PR #${bottomPR.prNumber} from ${bottomPR.baseRef} to ${tempBranchName}`,
-	);
-
-	await context.octokit.pulls.update({
-		owner,
-		repo,
-		pull_number: bottomPR.prNumber,
-		base: tempBranchName,
-	});
-
 	// Process each PR in the stack, in order from bottom to top
 	for (let i = 0; i < stack.length; i++) {
 		const currentPR = stack[i];
@@ -137,34 +124,61 @@ async function foldStackDownwards(
 			branch: currentPR.headRef,
 		});
 
-		// Get the commit details
-		const { data: commitData } = await context.octokit.git.getCommit({
-			owner,
-			repo,
-			commit_sha: branchData.commit.sha,
-		});
+		const commitSha = branchData.commit.sha;
 
-		// Create a new commit with the current temp branch as parent
-		const { data: newCommit } = await context.octokit.git.createCommit({
-			owner,
-			repo,
-			message: commitData.message,
-			tree: commitData.tree.sha,
-			parents: [currentTempBranchSha],
-			author: commitData.author,
-			committer: commitData.committer,
-		});
+		// Update the PR's head branch to be based on our temp branch
+		// This is crucial: we're preserving the original commit, but changing its base
+		if (i === 0) {
+			// For the first PR, we update the temp branch to match PR's head
+			await context.octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${tempBranchName}`,
+				sha: commitSha,
+				force: true,
+			});
 
-		// Apply just this single squashed commit
-		await context.octokit.git.updateRef({
-			owner,
-			repo,
-			ref: `heads/${tempBranchName}`,
-			sha: newCommit.sha,
-			force: true,
-		});
+			currentTempBranchSha = commitSha;
+		} else {
+			// For subsequent PRs, we need to get the commit details and create
+			// a new commit with the same changes but based on our updated temp branch
+			const { data: commitData } = await context.octokit.git.getCommit({
+				owner,
+				repo,
+				commit_sha: commitSha,
+			});
 
-		currentTempBranchSha = newCommit.sha;
+			// Create a new commit with the current temp branch as parent
+			const { data: newCommit } = await context.octokit.git.createCommit({
+				owner,
+				repo,
+				message: commitData.message,
+				tree: commitData.tree.sha,
+				parents: [currentTempBranchSha],
+				author: commitData.author,
+				committer: commitData.committer,
+			});
+
+			// Update the PR's head branch to point to this new commit
+			await context.octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${currentPR.headRef}`,
+				sha: newCommit.sha,
+				force: true,
+			});
+
+			// Also update our temp branch
+			await context.octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${tempBranchName}`,
+				sha: newCommit.sha,
+				force: true,
+			});
+
+			currentTempBranchSha = newCommit.sha;
+		}
 
 		// If there's a next PR in the stack, update its base to point to our temp branch
 		if (i < stack.length - 1) {
@@ -235,48 +249,58 @@ async function foldStackDownwards(
 		repo,
 		ref: `heads/${mainBranch}`,
 	});
+
 	const currentMainSha = currentMainRef.object.sha;
 
-	// Get the commits that are unique to our temp branch (our folded stack)
-	const { data: comparison } = await context.octokit.repos.compareCommits({
-		owner,
-		repo,
-		base: currentMainSha,
-		head: currentTempBranchSha,
-	});
+	if (currentMainSha !== mainSha) {
+		console.log(
+			`Main branch moved from ${mainSha} to ${currentMainSha} during operation, rebasing our folded changes on top of new main...`,
+		);
 
-	// Start from the current main branch
-	let newBase = currentMainSha;
-
-	// Apply each unique commit on top of the current main
-	for (const commit of comparison.commits) {
-		const { data: commitData } = await context.octokit.git.getCommit({
+		// Get the commits that are unique to our temp branch (our folded stack)
+		const { data: comparison } = await context.octokit.repos.compareCommits({
 			owner,
 			repo,
-			commit_sha: commit.sha,
+			base: mainSha, // Original main SHA when we started
+			head: currentTempBranchSha, // Our temp branch head
 		});
 
-		// Create a new commit with the same changes but based on our new base
-		const { data: newCommit } = await context.octokit.git.createCommit({
-			owner,
-			repo,
-			message: commitData.message,
-			tree: commitData.tree.sha,
-			parents: [newBase],
-			author: commitData.author,
-			committer: commitData.committer,
-		});
+		// Start from the current main branch
+		let rebasedSha = currentMainSha;
 
-		// Update our base to this new commit
-		newBase = newCommit.sha;
+		// Apply each unique commit on top of the current main
+		for (const commit of comparison.commits) {
+			const { data: commitData } = await context.octokit.git.getCommit({
+				owner,
+				repo,
+				commit_sha: commit.sha,
+			});
+
+			// Create a new commit with the same changes but based on our new base
+			const { data: newCommit } = await context.octokit.git.createCommit({
+				owner,
+				repo,
+				message: commitData.message,
+				tree: commitData.tree.sha,
+				parents: [rebasedSha],
+				author: commitData.author,
+				committer: commitData.committer,
+			});
+
+			// Update our rebase pointer
+			rebasedSha = newCommit.sha;
+		}
+
+		// Update currentTempBranchSha to our rebased state
+		currentTempBranchSha = rebasedSha;
 	}
 
-	// Finally, update the main branch to point to our fully constructed temp branch
+	// Update main to point to the temp branch state
 	await context.octokit.git.updateRef({
 		owner,
 		repo,
 		ref: `heads/${mainBranch}`,
-		sha: newBase,
+		sha: currentTempBranchSha,
 		force: true,
 	});
 

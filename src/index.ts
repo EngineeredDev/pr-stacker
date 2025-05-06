@@ -1,15 +1,55 @@
 import type { Probot, ApplicationFunctionOptions } from "probot";
-import { failComment, postComment, reactToComment } from "./comment.js";
+import {
+	failComment,
+	postComment,
+	postStackOutputComment,
+	reactToComment,
+} from "./comment.js";
 import { handleFoldCommand } from "./fold-command.js";
 import { handleHelpCommand } from "./help-command.js";
 import { handleSquashCommand } from "./squash-command.js";
 import {
+	botName,
 	type CommandSuccessResponse,
 	isCommentBotCommand,
 	parseCommand,
 } from "./utils.js";
+import { getPRStack } from "./pr-graph.js";
+import { getConfig } from "./config.js";
 
 export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
+	app.on(
+		[
+			"pull_request.edited",
+			"pull_request.opened",
+			"pull_request.reopened",
+			"pull_request.synchronize",
+		],
+		async (context) => {
+			const config = await getConfig(context);
+
+			if (!config.stackTreeComment.enable) {
+				return;
+			}
+			// skip if we were the ones who initiated the update
+			if (context.isBot && context.payload.sender.login === botName) {
+				return;
+			}
+
+			const currentPrNumber = context.payload.number;
+			const stack = await getPRStack(currentPrNumber, context);
+
+			if (config.stackTreeComment.skipSinglePR && stack.length === 1) {
+				return;
+			}
+
+			// update the comment for each PR in the stack
+			for (const pr of stack) {
+				await postStackOutputComment(pr.prNumber, stack, context);
+			}
+		},
+	);
+
 	app.on("issue_comment.created", async (context) => {
 		if (context.isBot || !context.payload.issue.pull_request) {
 			return;
