@@ -1,30 +1,34 @@
 # 🥞 pr-stacker
 
-> A GitHub App for easy and efficient folding of stacked PR's on Github.
+> What are stacked PR's? Learn more at [stacking.dev](https://www.stacking.dev/)
 
-Stacked PR's are awesome, but Github limitations do not make it easy on the CI/CD process. 
+Stacked PR's are awesome! But Github limitations do not make life easy on the CI/CD process for stackers.
 
-For example, most repositories will want to require a pull request before merging and will need to choose what merge methods to allow.
+Most repositories are going to require a pull request before merging, and enforcing that means choosing what merge methods will be allowed.
 
 ![image](https://github.com/user-attachments/assets/1613f276-7e8d-45ae-9a6c-50a9d728840c)
 
-It is often desired to only the "Squash" method. "Rebase" is asking for a terrible commit history, and the "Merge" commit is often undesirable as well.
+The sane and often desired approach is to only allow the "Squash" method. "Rebase" is asking for a terrible commit history, and the "Merge" commit is a hot topic of debate we won't get into here.
 
-Okay so we only want squash; this leaves stacked PR's in a tough spot. In order to preserve the individual PR commit history, you need to merge each PR into the trunk one by one, continually restacking them after each merge. If you have a lengthy CI validation process, this quickly becomes extremely tedious and also potentially expensive. (CI minutes don't grow on trees ya know!)
+Okay so we only want squash; this now leaves stacked PR's in a tough spot. In order to preserve each PR's commit history, you need to merge each PR into the trunk one by one, continually restacking upstack PR's after each merge. If you have a lengthy CI validation process, this quickly becomes extremely tedious and also expensive. (CI minutes don't grow on trees ya know!)
 
-The other option is to "fold" each PR into the one below it, and then squash the whole changeset in the final remaining PR and merge that into your trunk. This stinks! You lose your commit history, and now your entire changeset will only point to this one PR. All that hard work lost to the annals of time!
+The other option is to "fold" each PR into the one below it and then squash the whole changeset from the final remaining PR into your trunk. This stinks! You lose your commit history, and now your entire changeset will only point to this one PR. All that hard work lost to the Github Gods!
 
 ### Enter `pr-stacker-bot`!
 
-When you are ready to merge a stack of PR's, just comment `/stackbot fold` on a pull request, and it will fold that PR and all below it in the stack into the trunk branch. 
+When you are ready to merge a stack of PR's, just comment `/stackbot fold` on a pull request, and the bot will fold that PR and all those below it into the trunk branch. 
 
 The way it works is that it first squashes each PR into one commit, setting the commit message to the PR title and body. 
 
-Then it takes each commit and puts it on a temporary branch, and then rebases each squashed commit onto the trunk branch individually. 
+Then it takes each squashed commit and puts it on a temporary branch, and then rebasing the latest state of that temporary branch onto the trunk branch. 
 
-It does this operation iteratively, one by one, so that Github will correctly mark each individual PR as "merged" automatically. All changeset history is properly preserved, and you can still back and view the original PR's to see an accurate representation of what each commit/PR changed. Beautiful!
+The bot does this operation iteratively, one by one, so that Github will correctly mark each individual PR as "merged" automatically. All changeset history is properly preserved! You can go back and view the original PR's to see an accurate representation of what each commit/PR changed. Beautiful!
 
 The only real downside is that each PR will have a base that points to a temporary branch.
+
+A helpful comment with the representation of the full PR stack is added to each PR and updated as needed automatically.
+
+By default, the bot will not fold the stack if any PR that would be folded is not ready to merge because of any CI checks that it might have failed (or are still running).
 
 ## Setup
 
@@ -44,6 +48,10 @@ Add a `.github/pr-stacker.yml` file in your repo where you can provider certain 
 
 - `mainBranch`: (default: repo default branch) Set this to override the "trunk" to any other branch.
 - `singleComment`: (default: `false`) Each action will generate a separate comment by default. Set this to `true` if you prefer there to only ever be 1 comment per PR, that continually gets edited if multiple commands are performed.
+- `skipReadyCheck`: (default: `false`) If for some reason you want to be able to fold PR's that haven't passed CI or are otherwise not ready, you can set this config value to `true`.
+- `stackTreeComment`: A config object for the comment that is added with the tree representation of the stack.
+  - `enable`: (default: `true`)
+  - `skipSinglePR`: (default: `true`) Comments will only be added to PR's that are at least part of a stack of 2. If you just want to add comments to every PR no matter what, you may set this to `false`. 
 
 ## Self Hosted
 
