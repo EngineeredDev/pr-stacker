@@ -64,7 +64,9 @@ export async function handleFoldCommand(
 			const owner = context.payload.repository.owner.login;
 			const trunkRef = stack[0].baseRef;
 
-			console.log(`Setting the next PR in the stack to have base ${trunkRef}`);
+			context.log.info(
+				`Setting the next PR in the stack to have base ${trunkRef}`,
+			);
 
 			await context.octokit.pulls.update({
 				owner,
@@ -115,7 +117,9 @@ async function foldStackDownwards(
 	// Process each PR in the stack, in order from bottom to top
 	for (let i = 0; i < stack.length; i++) {
 		const currentPR = stack[i];
-		console.log(`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`);
+		context.log.info(
+			`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`,
+		);
 
 		// Get only the latest commit (the squashed one) from the branch
 		const { data: branchData } = await context.octokit.repos.getBranch({
@@ -183,7 +187,7 @@ async function foldStackDownwards(
 		// If there's a next PR in the stack, update its base to point to our temp branch
 		if (i < stack.length - 1) {
 			const nextPR = stack[i + 1];
-			console.log(
+			context.log.info(
 				`Changing base of PR #${nextPR.prNumber} from ${nextPR.baseRef} to ${tempBranchName}`,
 			);
 
@@ -253,7 +257,7 @@ async function foldStackDownwards(
 	const currentMainSha = currentMainRef.object.sha;
 
 	if (currentMainSha !== mainSha) {
-		console.log(
+		context.log.info(
 			`Main branch moved from ${mainSha} to ${currentMainSha} during operation, rebasing our folded changes on top of new main...`,
 		);
 
