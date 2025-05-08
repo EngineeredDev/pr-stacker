@@ -26,9 +26,6 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 			"pull_request.synchronize",
 		],
 		async (context) => {
-			// TODO: maybe we need to keep state of current updating stacks.
-			// If someone updates a stack and pushes each branch in rapid succession,
-			// a webhook for each PR is sent and sometimes multiple comments are posted.
 			const config = await getConfig(context);
 
 			if (!config.stackTreeComment.enable) {
@@ -46,13 +43,7 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 				return;
 			}
 
-			// update the comment for each PR in the stack
-			for (const pr of stack) {
-				await postStackOutputComment(pr.prNumber, stack, context);
-
-				// wait around for 2 seconds for Github to process
-				await new Promise((resolve) => setTimeout(resolve, 2000));
-			}
+			await postStackOutputComment(currentPrNumber, stack, context);
 		},
 	);
 
