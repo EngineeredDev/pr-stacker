@@ -7,6 +7,10 @@ export interface SquashBotConfig {
 	 */
 	mainBranch?: string;
 	/*
+	 * By default, only the creator of the PR can squash or fold PRs. Set this to false if you want to let anyone do this.
+	 */
+	restrictCommandsToOriginator: boolean;
+	/*
 	 * Set `singleComment` to `true` if you would prefer the bot to post 1 comment and make edits to it with new commands
 	 */
 	singleComment: boolean;
@@ -31,6 +35,7 @@ export interface SquashBotConfig {
 
 const defaultOptions = {
 	enabled: true,
+	restrictCommandsToOriginator: true,
 	singleComment: false,
 	skipReadyCheck: false,
 	stackTreeComment: {

@@ -47,6 +47,7 @@ Then go ahead and add the `pr-stacker` app to the bypass list of your branch pro
 Add a `.github/pr-stacker.yml` file in your repo where you can provider certain settings:
 
 - `mainBranch`: (default: repo default branch) Set this to override the "trunk" to any other branch.
+- `restrictCommandsToOriginator`: (default: `true`) Only the creator of the PR can initiate `stackbot` commands. Set this to false if you want to let anyone perform `stackbot` commands.
 - `singleComment`: (default: `false`) Each action will generate a separate comment by default. Set this to `true` if you prefer there to only ever be 1 comment per PR, that continually gets edited if multiple commands are performed.
 - `skipReadyCheck`: (default: `false`) If for some reason you want to be able to fold PR's that haven't passed CI or are otherwise not ready, you can set this config value to `true`.
 - `stackTreeComment`: A config object for the comment that is added with the tree representation of the stack.

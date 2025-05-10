@@ -36,6 +36,17 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 				return;
 			}
 
+			if (
+				config.restrictCommandsToOriginator &&
+				context.payload.sender.login !== context.payload.pull_request.user.login
+			) {
+				await failComment(
+					context,
+					"Only the creator of this stack can initiate `stackbot` commands",
+				);
+				return;
+			}
+
 			const currentPrNumber = context.payload.number;
 			const stack = await getPRStack(currentPrNumber, context);
 

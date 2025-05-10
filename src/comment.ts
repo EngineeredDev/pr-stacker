@@ -60,10 +60,7 @@ export async function postComment(
 	});
 }
 
-export async function failComment(
-	context: Context<"issue_comment">,
-	error: unknown,
-) {
+export async function failComment(context: Context, error: unknown) {
 	context.log.error("Error merging PR:", error);
 
 	await postComment(context, `❌ ${getErrorMessage(error)}`);
