@@ -14,7 +14,7 @@
 		"build:watch": "tsc --watch",
 		"lint": "biome check --write",
 		"probot:watch": "nodemon --watch lib --ext js --exec \"probot run ./lib/index.js\"",
-		"start:prod": "probot run ./lib/index.js"
+		"start:prod": "LOG_LEVEL=warn probot run ./lib/index.js"
 	},
 	"dependencies": {
 		"express": "^5.1.0",
