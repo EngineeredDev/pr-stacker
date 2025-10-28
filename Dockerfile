@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM node:20-slim AS builder
+FROM node:20-alpine AS builder
 WORKDIR /usr/src/app
 
 # Copy package files first to leverage layer caching
@@ -14,12 +14,13 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /usr/src/app
 
-# Copy built assets and production dependencies
+# Copy built assets and package files
 COPY --from=builder /usr/src/app/lib ./lib
 COPY --from=builder /usr/src/app/package*.json ./
 
-# Install production-only dependencies and clean cache
-RUN npm ci --omit=dev && \
+# Copy node_modules from builder and prune dev dependencies
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+RUN npm prune --omit=dev && \
     npm cache clean --force
 
 # Use built-in non-root user
