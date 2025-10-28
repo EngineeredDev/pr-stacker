@@ -1,5 +1,6 @@
 import type { Context } from "probot";
 import { getConfig, getMainBranch } from "./config.js";
+import { getContextLogger } from "./logger.js";
 import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
 import { type PullRequest, checkMergeReadiness } from "./pull-request.js";
 import { squashPR } from "./squash-command.js";
@@ -64,8 +65,13 @@ export async function handleFoldCommand(
 			const owner = context.payload.repository.owner.login;
 			const trunkRef = stack[0].baseRef;
 
-			context.log.info(
-				`Setting the next PR in the stack to have base ${trunkRef} and rebasing its head`,
+			const log = getContextLogger(context);
+			log.info(
+				{
+					nextPR: nextPR.prNumber,
+					trunkRef,
+				},
+				"Setting the next PR in the stack to have base trunk and rebasing its head",
 			);
 
 			await context.octokit.pulls.update({
@@ -118,8 +124,13 @@ export async function handleFoldCommand(
 				force: true,
 			});
 
-			context.log.info(
-				`Rebased PR #${nextPR.prNumber} head branch onto ${trunkRef}`,
+			log.info(
+				{
+					prNumber: nextPR.prNumber,
+					headRef: nextPR.headRef,
+					trunkRef,
+				},
+				"Rebased PR head branch onto trunk",
 			);
 		}
 
@@ -133,6 +144,7 @@ async function foldStackDownwards(
 	context: Context<"issue_comment.created">,
 	stack: PullRequest[],
 ): Promise<CommandSuccessResponse[]> {
+	const log = getContextLogger(context);
 	const repo = context.payload.repository.name;
 	const owner = context.payload.repository.owner.login;
 	const responses: CommandSuccessResponse[] = [];
@@ -164,8 +176,13 @@ async function foldStackDownwards(
 	// Process each PR in the stack, in order from bottom to top
 	for (let i = 0; i < stack.length; i++) {
 		const currentPR = stack[i];
-		context.log.info(
-			`Processing PR #${currentPR.prNumber} (${currentPR.headRef})`,
+		log.info(
+			{
+				prNumber: currentPR.prNumber,
+				headRef: currentPR.headRef,
+				stackPosition: `${i + 1}/${stack.length}`,
+			},
+			"Processing PR in stack",
 		);
 
 		// Get only the latest commit (the squashed one) from the branch
@@ -234,8 +251,13 @@ async function foldStackDownwards(
 		// If there's a next PR in the stack, update its base to point to our temp branch
 		if (i < stack.length - 1) {
 			const nextPR = stack[i + 1];
-			context.log.info(
-				`Changing base of PR #${nextPR.prNumber} from ${nextPR.baseRef} to ${tempBranchName}`,
+			log.info(
+				{
+					prNumber: nextPR.prNumber,
+					oldBase: nextPR.baseRef,
+					newBase: tempBranchName,
+				},
+				"Changing base of PR to temp branch",
 			);
 
 			await context.octokit.pulls.update({
@@ -304,8 +326,12 @@ async function foldStackDownwards(
 	const currentMainSha = currentMainRef.object.sha;
 
 	if (currentMainSha !== mainSha) {
-		context.log.info(
-			`Main branch moved from ${mainSha} to ${currentMainSha} during operation, rebasing our folded changes on top of new main...`,
+		log.info(
+			{
+				oldMainSha: mainSha.substring(0, 7),
+				newMainSha: currentMainSha.substring(0, 7),
+			},
+			"Main branch moved during operation, rebasing folded changes on top of new main",
 		);
 
 		// Get the commits that are unique to our temp branch (our folded stack)

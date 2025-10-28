@@ -1,5 +1,6 @@
 import type { Context } from "probot";
 import { getConfig } from "./config.js";
+import { getContextLogger } from "./logger.js";
 import type { PullRequest } from "./pull-request.js";
 import { botName, getErrorMessage } from "./utils.js";
 
@@ -61,7 +62,8 @@ export async function postComment(
 }
 
 export async function failComment(context: Context, error: unknown) {
-	context.log.error("Error merging PR:", error);
+	const log = getContextLogger(context);
+	log.error({ error: getErrorMessage(error) }, "Error processing command");
 
 	await postComment(context, `❌ ${getErrorMessage(error)}`);
 }

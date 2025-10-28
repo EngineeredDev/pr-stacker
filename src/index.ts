@@ -88,7 +88,7 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 					result = await handleFoldCommand(context, subCommand);
 					break;
 				case "help":
-					result = handleHelpCommand();
+					result = handleHelpCommand(context);
 					break;
 				default:
 					throw new Error(

@@ -1,6 +1,14 @@
+import type { Context } from "probot";
+import { getContextLogger } from "./logger.js";
 import { type CommandSuccessResponse, baseBotCommand } from "./utils.js";
 
-export function handleHelpCommand(): CommandSuccessResponse[] {
+export function handleHelpCommand(
+	context: Context<"issue_comment.created">,
+): CommandSuccessResponse[] {
+	const log = getContextLogger(context);
+
+	log.info("Help command requested");
+
 	return [
 		{
 			message: `

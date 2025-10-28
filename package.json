@@ -15,7 +15,7 @@
 		"lint:fix": "biome check --write",
 		"lint": "biome check",
 		"probot:watch": "nodemon --watch lib --ext js --exec \"probot run ./lib/index.js\"",
-		"start:prod": "LOG_LEVEL=info LOG_LEVEL_IN_STRING=true node ./lib/server.js"
+		"start:prod": "LOG_LEVEL=info node ./lib/server.js"
 	},
 	"dependencies": {
 		"express": "^5.1.0",
