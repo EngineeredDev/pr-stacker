@@ -57,7 +57,7 @@ export async function handleFoldCommand(
 		// Step 5: Fold the stack
 		const responses = await foldStackDownwards(context, prsToProcess);
 
-		// Step 6: If folded from the middle, fix the next PR to point to trunk
+		// Step 6: If folded from the middle, fix the next PR to point to trunk and rebase its head
 		if (stack.length > prsToProcess.length) {
 			const nextPR = stack[prsToProcess.length];
 			const repo = context.payload.repository.name;
@@ -65,7 +65,7 @@ export async function handleFoldCommand(
 			const trunkRef = stack[0].baseRef;
 
 			context.log.info(
-				`Setting the next PR in the stack to have base ${trunkRef}`,
+				`Setting the next PR in the stack to have base ${trunkRef} and rebasing its head`,
 			);
 
 			await context.octokit.pulls.update({
@@ -74,6 +74,53 @@ export async function handleFoldCommand(
 				pull_number: nextPR.prNumber,
 				base: trunkRef,
 			});
+
+			// Get the current main branch SHA (after the fold operation)
+			const { data: mainRef } = await context.octokit.git.getRef({
+				owner,
+				repo,
+				ref: `heads/${trunkRef}`,
+			});
+			const mainSha = mainRef.object.sha;
+
+			// Get the next PR's current head commit
+			const { data: nextBranchData } = await context.octokit.repos.getBranch({
+				owner,
+				repo,
+				branch: nextPR.headRef,
+			});
+
+			// Get details of the next PR's head commit to preserve author info
+			const { data: nextHeadCommit } = await context.octokit.git.getCommit({
+				owner,
+				repo,
+				commit_sha: nextBranchData.commit.sha,
+			});
+
+			// Create a new commit based on trunk with the same tree
+			// This ensures the PR only shows its own changes, not the folded PRs
+			const { data: newHeadCommit } = await context.octokit.git.createCommit({
+				owner,
+				repo,
+				message: nextHeadCommit.message,
+				tree: nextHeadCommit.tree.sha,
+				parents: [mainSha],
+				author: nextHeadCommit.author,
+				committer: nextHeadCommit.committer,
+			});
+
+			// Force update the next PR's head branch to point to this new commit
+			await context.octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${nextPR.headRef}`,
+				sha: newHeadCommit.sha,
+				force: true,
+			});
+
+			context.log.info(
+				`Rebased PR #${nextPR.prNumber} head branch onto ${trunkRef}`,
+			);
 		}
 
 		return responses;
