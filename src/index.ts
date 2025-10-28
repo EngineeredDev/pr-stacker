@@ -1,21 +1,21 @@
-import type { Probot, ApplicationFunctionOptions } from "probot";
+import type { ApplicationFunctionOptions, Probot } from "probot";
 import {
 	failComment,
 	postComment,
 	postStackOutputComment,
 	reactToComment,
 } from "./comment.js";
+import { getConfig } from "./config.js";
 import { handleFoldCommand } from "./fold-command.js";
 import { handleHelpCommand } from "./help-command.js";
+import { getPRStack } from "./pr-graph.js";
 import { handleSquashCommand } from "./squash-command.js";
 import {
-	botName,
 	type CommandSuccessResponse,
+	botName,
 	isCommentBotCommand,
 	parseCommand,
 } from "./utils.js";
-import { getPRStack } from "./pr-graph.js";
-import { getConfig } from "./config.js";
 
 export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 	app.on(

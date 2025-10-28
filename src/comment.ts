@@ -1,7 +1,7 @@
 import type { Context } from "probot";
-import { botName, getErrorMessage } from "./utils.js";
 import { getConfig } from "./config.js";
 import type { PullRequest } from "./pull-request.js";
+import { botName, getErrorMessage } from "./utils.js";
 
 const STACK_METADATA = "<!-- pr-stack -->";
 
