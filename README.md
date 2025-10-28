@@ -2,20 +2,18 @@
 
 > What are stacked PR's? Learn more at [stacking.dev](https://www.stacking.dev/)
 
-## The Problem
-
 **Stacked Pull Requests meet GitHub's merge limitations.**
 
-Stacked PRs (small, incremental changes built on top of each other) are a best practice for breaking down large features into reviewable chunks. However, GitHub's merge strategy enforcement creates a painful dilemma:
+Stacked PRs (small, incremental changes built on top of each other) are a best practice for breaking down large features into reviewable chunks. However, GitHub's merge strategy enforcement creates a painful dilemma.
 
 ### Why Squash Merging is Standard
 Most repositories enforce "squash merge only" for valid reasons:
 
 ![image](https://github.com/user-attachments/assets/1613f276-7e8d-45ae-9a6c-50a9d728840c)
 
-- **Rebase merging** creates noisy, unstructured commit histories
-- **Merge commits** add clutter and are controversial
-- **Squash merging** keeps the main branch clean with one commit per feature
+- 👎 **Rebase merging** creates noisy, unstructured commit histories
+- 👎 **Merge commits** add clutter and are controversial
+- 👍 **Squash merging** keeps the main branch clean with one commit per feature
 
 ### The Stacked PR Dilemma
 When you have a stack of PRs (PR1 → PR2 → PR3 → main) and can only squash merge:
@@ -27,9 +25,9 @@ When you have a stack of PRs (PR1 → PR2 → PR3 → main) and can only squash 
 - Repeat for every PR in the stack
 
 **Problems:**
-- Extremely tedious manual process
-- Expensive (multiple CI runs)
-- Time-consuming (sequential waiting)
+- ❌ Extremely tedious manual process
+- ❌ Expensive (multiple CI runs)
+- ❌ Time-consuming (sequential waiting)
 
 **Option 2: "Fold" PRs together**
 - Fold PR3 into PR2, then PR2 into PR1
@@ -54,10 +52,42 @@ Simply comment `/stackbot fold` on any PR in your stack, and the bot:
 ### Key Benefits
 
 ✅ **One command** instead of manual sequential merging
+
 ✅ **Single CI run** instead of re-running CI for each restack
+
 ✅ **Complete history preserved** - each PR remains traceable with its original context
+
 ✅ **GitHub "merged" status** - all PRs properly marked as merged, not closed
+
 ✅ **Clean main branch** - maintains squash-merge benefits
+
+## Setup
+1. Install the [pr-stacker GitHub App](https://github.com/apps/pr-stacker)
+2. Add `pr-stacker` to your branch protection bypass list and ensure it is allowed to force-push to your trunk branch.
+3. Optionally configure via `.github/pr-stacker.yml`
+
+### Usage
+Comment on any PR in your stack:
+- `/stackbot fold` - Squash and fold from current PR down to trunk
+- `/stackbot squash` - Squash each PR without folding to trunk
+- `/stackbot help` - Show available commands
+
+### Automatic Stack Visualization
+The bot automatically comments on each PR with a tree view showing its position in the stack, keeping developers informed as the stack evolves.
+
+## Configuration Options
+
+- **mainBranch**: Override default trunk branch
+- **restrictCommandsToOriginator**: Only PR creator can run commands (default: true)
+- **singleComment**: Edit one comment vs. create multiple (default: false)
+- **skipReadyCheck**: Allow folding PRs that haven't passed CI (default: false)
+- **stackTreeComment**: Control automatic stack visualization comments
+
+## Trade-offs
+
+**Minor drawback**: After folding, each PR's base branch will reference the temporary branch used during the operation. This is a cosmetic issue and doesn't affect functionality.
+
+**Force Push Override**: Requires the bot to have an override to be able to force push to the protected trunk branch.
 
 ## How It Works
 
@@ -89,36 +119,6 @@ When `/stackbot fold` is executed:
 ### Why Temporary Branches?
 
 This approach preserves commit trees (file contents) while changing commit parentage to create the desired linear history. It allows GitHub to properly recognize PRs as merged rather than just closed.
-
-## User Experience
-
-### Setup
-1. Install the [pr-stacker GitHub App](https://github.com/apps/pr-stacker)
-2. Add `pr-stacker` to your branch protection bypass list
-3. Optionally configure via `.github/pr-stacker.yml`
-
-### Usage
-Comment on any PR in your stack:
-- `/stackbot fold` - Squash and fold from current PR down to trunk
-- `/stackbot squash` - Squash each PR without folding to trunk
-- `/stackbot help` - Show available commands
-
-### Automatic Stack Visualization
-The bot automatically comments on each PR with a tree view showing its position in the stack, keeping developers informed as the stack evolves.
-
-## Configuration Options
-
-- **mainBranch**: Override default trunk branch
-- **restrictCommandsToOriginator**: Only PR creator can run commands (default: true)
-- **singleComment**: Edit one comment vs. create multiple (default: false)
-- **skipReadyCheck**: Allow folding PRs that haven't passed CI (default: false)
-- **stackTreeComment**: Control automatic stack visualization comments
-
-## Trade-offs
-
-**Minor drawback**: After folding, each PR's base branch will reference the temporary branch used during the operation. This is a cosmetic issue and doesn't affect functionality.
-
-**Major benefit**: Complete preservation of development history, making it easy to trace which changes came from which PR and review the original context months later.
 
 ## Deployment
 
