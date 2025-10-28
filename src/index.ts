@@ -54,7 +54,17 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 				return;
 			}
 
-			await postStackOutputComment(currentPrNumber, stack, context);
+			// Update tree comment for ALL PRs in the stack, not just the current one
+			for (const pr of stack) {
+				try {
+					await postStackOutputComment(pr.prNumber, stack, context);
+				} catch (error) {
+					context.log.error(
+						`Failed to update stack comment for PR #${pr.prNumber}:`,
+						error,
+					);
+				}
+			}
 		},
 	);
 
