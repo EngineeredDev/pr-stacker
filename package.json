@@ -13,7 +13,7 @@
 		"build": "tsc",
 		"build:watch": "tsc --watch",
 		"lint:fix": "biome check --write",
-		"lint": "biome check",
+		"lint": "concurrently \"biome check\" \"tsc --noEmit\"",
 		"probot:watch": "nodemon --watch lib --ext js --exec \"probot run ./lib/index.js\"",
 		"start:prod": "LOG_LEVEL=warn probot run ./lib/index.js"
 	},
