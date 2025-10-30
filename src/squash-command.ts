@@ -1,4 +1,5 @@
 import type { Context } from "probot";
+import { ExpectedError, ValidationError } from "./errors.js";
 import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
 import { type SubCommand, getErrorMessage } from "./utils.js";
 
@@ -51,7 +52,7 @@ export async function squashPR(
 		});
 
 		if (commits.length === 0) {
-			throw new Error("There are no commits in this PR");
+			throw new ValidationError("There are no commits in this PR");
 		}
 
 		const originalCommit = commits[0];
@@ -125,6 +126,15 @@ export async function squashPR(
 			},
 		});
 	} catch (error) {
+		// Preserve ExpectedError types (ValidationError, etc.) when wrapping
+		if (error instanceof ExpectedError) {
+			const WrappedErrorClass = error.constructor as new (
+				message: string,
+			) => ExpectedError;
+			throw new WrappedErrorClass(
+				`Could not squash PR #${prNumber}: ${getErrorMessage(error)}`,
+			);
+		}
 		throw new Error(
 			`Could not squash PR #${prNumber}: ${getErrorMessage(error)}`,
 		);

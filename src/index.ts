@@ -6,6 +6,7 @@ import {
 	reactToComment,
 } from "./comment.js";
 import { getConfig } from "./config.js";
+import { ExpectedError, ValidationError } from "./errors.js";
 import { handleFoldCommand } from "./fold-command.js";
 import { handleHelpCommand } from "./help-command.js";
 import { getPRStack } from "./pr-graph.js";
@@ -85,7 +86,9 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 
 		try {
 			if (!baseCommand) {
-				throw new Error(`The command \`${baseCommand}\` was not recognized.`);
+				throw new ValidationError(
+					`The command \`${baseCommand}\` was not recognized.`,
+				);
 			}
 
 			await reactToComment(context);
@@ -101,7 +104,7 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 					result = handleHelpCommand(context);
 					break;
 				default:
-					throw new Error(
+					throw new ValidationError(
 						`Could not understand command: \`${baseCommand} ${subCommand}\``,
 					);
 			}
@@ -113,7 +116,10 @@ export default (app: Probot, { getRouter }: ApplicationFunctionOptions) => {
 			await reactToComment(context, "confused");
 			await failComment(context, error);
 
-			throw error;
+			// Only report unexpected errors to Sentry
+			if (!(error instanceof ExpectedError)) {
+				throw error;
+			}
 		}
 	});
 

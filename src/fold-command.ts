@@ -1,5 +1,6 @@
 import type { Context } from "probot";
 import { getConfig, getMainBranch } from "./config.js";
+import { ExpectedError, ValidationError } from "./errors.js";
 import { getContextLogger } from "./logger.js";
 import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
 import { type PullRequest, checkMergeReadiness } from "./pull-request.js";
@@ -41,7 +42,7 @@ export async function handleFoldCommand(
 
 			const unreadyPRs = prsToProcess.filter((_, i) => !readinessChecks[i]);
 			if (unreadyPRs.length > 0) {
-				throw new Error(
+				throw new ValidationError(
 					`The following PRs are not ready to be folded:\n ${unreadyPRs
 						.map((pr) => `- #${pr.prNumber}`)
 						.join("\n")}`,
@@ -136,6 +137,16 @@ export async function handleFoldCommand(
 
 		return responses;
 	} catch (error) {
+		// Preserve ExpectedError types (ValidationError, etc.) when wrapping
+		if (error instanceof ExpectedError) {
+			// Re-wrap with the same error type to preserve the expected error classification
+			const WrappedErrorClass = error.constructor as new (
+				message: string,
+			) => ExpectedError;
+			throw new WrappedErrorClass(
+				`Failed to fold stack: ${getErrorMessage(error)}`,
+			);
+		}
 		throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`);
 	}
 }
