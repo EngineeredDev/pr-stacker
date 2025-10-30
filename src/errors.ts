@@ -3,8 +3,8 @@
  * These are validation failures and user errors that are part of normal operation.
  */
 export class ExpectedError extends Error {
-	constructor(message: string) {
-		super(message);
+	constructor(message: string, options?: ErrorOptions) {
+		super(message, options);
 		this.name = "ExpectedError";
 	}
 }
@@ -14,8 +14,8 @@ export class ExpectedError extends Error {
  * These errors are expected and should be shown to users but not reported to Sentry.
  */
 export class ValidationError extends ExpectedError {
-	constructor(message: string) {
-		super(message);
+	constructor(message: string, options?: ErrorOptions) {
+		super(message, options);
 		this.name = "ValidationError";
 	}
 }
@@ -25,8 +25,8 @@ export class ValidationError extends ExpectedError {
  * These errors are expected and should not be reported to Sentry.
  */
 export class PermissionError extends ExpectedError {
-	constructor(message: string) {
-		super(message);
+	constructor(message: string, options?: ErrorOptions) {
+		super(message, options);
 		this.name = "PermissionError";
 	}
 }
@@ -36,8 +36,8 @@ export class PermissionError extends ExpectedError {
  * These errors are expected and should not be reported to Sentry.
  */
 export class ConfigurationError extends ExpectedError {
-	constructor(message: string) {
-		super(message);
+	constructor(message: string, options?: ErrorOptions) {
+		super(message, options);
 		this.name = "ConfigurationError";
 	}
 }

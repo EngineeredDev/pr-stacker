@@ -1,5 +1,6 @@
 import type { Context } from "probot";
 import { ExpectedError, ValidationError } from "./errors.js";
+import { getContextLogger } from "./logger.js";
 import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
 import { type SubCommand, getErrorMessage } from "./utils.js";
 
@@ -126,17 +127,32 @@ export async function squashPR(
 			},
 		});
 	} catch (error) {
-		// Preserve ExpectedError types (ValidationError, etc.) when wrapping
+		const log = getContextLogger(context);
+
+		log.error(
+			{
+				error,
+				operation: "squash_pr",
+				prNumber,
+				repository: `${owner}/${repo}`,
+			},
+			`Could not squash PR #${prNumber}`,
+		);
+
 		if (error instanceof ExpectedError) {
 			const WrappedErrorClass = error.constructor as new (
 				message: string,
+				options?: ErrorOptions,
 			) => ExpectedError;
 			throw new WrappedErrorClass(
 				`Could not squash PR #${prNumber}: ${getErrorMessage(error)}`,
+				{ cause: error },
 			);
 		}
+
 		throw new Error(
 			`Could not squash PR #${prNumber}: ${getErrorMessage(error)}`,
+			{ cause: error },
 		);
 	}
 }

@@ -15,17 +15,15 @@ export async function handleFoldCommand(
 	context: Context<"issue_comment.created">,
 	subCommand: SubCommand = "down",
 ): Promise<CommandSuccessResponse[]> {
+	const currentPrNumber = context.payload.issue.number;
+	let prsToProcess: PullRequest[] | undefined;
+
 	try {
 		// Step 1: Get the PR stack
-		const currentPrNumber = context.payload.issue.number;
 		const stack = await getPRStack(currentPrNumber, context);
 
 		// Step 2: Determine which PRs to process based on subCommand
-		const prsToProcess = getRelevantPRsFromStack(
-			currentPrNumber,
-			stack,
-			subCommand,
-		);
+		prsToProcess = getRelevantPRsFromStack(currentPrNumber, stack, subCommand);
 
 		const config = await getConfig(context);
 
@@ -137,17 +135,37 @@ export async function handleFoldCommand(
 
 		return responses;
 	} catch (error) {
-		// Preserve ExpectedError types (ValidationError, etc.) when wrapping
+		const log = getContextLogger(context);
+		const repo = context.payload.repository.name;
+		const owner = context.payload.repository.owner.login;
+
+		log.error(
+			{
+				error,
+				operation: "fold_command",
+				subCommand,
+				currentPR: currentPrNumber,
+				prNumbers: prsToProcess?.map((pr) => pr.prNumber),
+				stackSize: prsToProcess?.length,
+				repository: `${owner}/${repo}`,
+			},
+			"Failed to fold stack",
+		);
+
 		if (error instanceof ExpectedError) {
-			// Re-wrap with the same error type to preserve the expected error classification
 			const WrappedErrorClass = error.constructor as new (
 				message: string,
+				options?: ErrorOptions,
 			) => ExpectedError;
 			throw new WrappedErrorClass(
 				`Failed to fold stack: ${getErrorMessage(error)}`,
+				{ cause: error },
 			);
 		}
-		throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`);
+
+		throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`, {
+			cause: error,
+		});
 	}
 }
 
