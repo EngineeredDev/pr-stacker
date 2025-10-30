@@ -1,6 +1,6 @@
 import type { Context } from "probot";
 import { getConfig, getMainBranch } from "./config.js";
-import { ExpectedError, ValidationError } from "./errors.js";
+import { ValidationError, handleAndLogError } from "./errors.js";
 import { getContextLogger } from "./logger.js";
 import { getPRStack, getRelevantPRsFromStack } from "./pr-graph.js";
 import { type PullRequest, checkMergeReadiness } from "./pull-request.js";
@@ -135,13 +135,13 @@ export async function handleFoldCommand(
 
 		return responses;
 	} catch (error) {
-		const log = getContextLogger(context);
 		const repo = context.payload.repository.name;
 		const owner = context.payload.repository.owner.login;
 
-		log.error(
-			{
-				error,
+		handleAndLogError(context, error, {
+			userMessage: `Failed to fold stack: ${getErrorMessage(error)}`,
+			logMessage: "Failed to fold stack",
+			logContext: {
 				operation: "fold_command",
 				subCommand,
 				currentPR: currentPrNumber,
@@ -149,22 +149,6 @@ export async function handleFoldCommand(
 				stackSize: prsToProcess?.length,
 				repository: `${owner}/${repo}`,
 			},
-			"Failed to fold stack",
-		);
-
-		if (error instanceof ExpectedError) {
-			const WrappedErrorClass = error.constructor as new (
-				message: string,
-				options?: ErrorOptions,
-			) => ExpectedError;
-			throw new WrappedErrorClass(
-				`Failed to fold stack: ${getErrorMessage(error)}`,
-				{ cause: error },
-			);
-		}
-
-		throw new Error(`Failed to fold stack: ${getErrorMessage(error)}`, {
-			cause: error,
 		});
 	}
 }

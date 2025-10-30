@@ -1,5 +1,6 @@
 import type { Context } from "probot";
 import { getConfig } from "./config.js";
+import { ExpectedError } from "./errors.js";
 import { getContextLogger } from "./logger.js";
 import type { PullRequest } from "./pull-request.js";
 import { botName, getErrorMessage } from "./utils.js";
@@ -63,7 +64,15 @@ export async function postComment(
 
 export async function failComment(context: Context, error: unknown) {
 	const log = getContextLogger(context);
-	log.error({ error: getErrorMessage(error) }, "Error processing command");
+
+	// Log at appropriate level based on error type
+	if (error instanceof ExpectedError) {
+		// Expected errors (validation failures) logged at warn level - not sent to Sentry
+		log.warn({ error: getErrorMessage(error) }, "Error processing command");
+	} else {
+		// Unexpected errors (bugs, API failures) logged at error level - sent to Sentry
+		log.error({ error: getErrorMessage(error) }, "Error processing command");
+	}
 
 	await postComment(context, `❌ ${getErrorMessage(error)}`);
 }
