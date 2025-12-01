@@ -18,7 +18,7 @@
 		"start:prod": "LOG_LEVEL=info node ./lib/server.js"
 	},
 	"dependencies": {
-		"express": "^5.1.0",
+		"express": "^5.2.1",
 		"graphology": "^0.26.0",
 		"graphology-dag": "^0.4.1",
 		"graphology-traversal": "^0.3.1",
